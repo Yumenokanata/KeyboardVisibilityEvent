@@ -2,6 +2,7 @@ package net.yslibrary.android.keyboardvisibilityevent;
 
 import android.app.Activity;
 import android.graphics.Rect;
+import android.os.Build;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
@@ -21,10 +22,21 @@ public class KeyboardVisibilityEvent {
      * @param activity Activity
      * @param listener KeyboardVisibilityEventListener
      */
-    public static void setEventListener(final Activity activity,
+    public static UnbindKeyboard setEventListener(final Activity activity,
+                                        final KeyboardVisibilityEventListener listener) {
+        return setEventListener(getActivityRoot(activity), listener);
+    }
+
+    /**
+     * Set keyboard visibility change event listener.
+     *
+     * @param rootView View
+     * @param listener KeyboardVisibilityEventListener
+     */
+    public static UnbindKeyboard setEventListener(final View rootView,
                                         final KeyboardVisibilityEventListener listener) {
 
-        if (activity == null) {
+        if (rootView == null) {
             throw new NullPointerException("Parameter:activity must not be null");
         }
 
@@ -32,23 +44,21 @@ public class KeyboardVisibilityEvent {
             throw new NullPointerException("Parameter:listener must not be null");
         }
 
-        final View activityRoot = getActivityRoot(activity);
-
-        activityRoot.getViewTreeObserver().addOnGlobalLayoutListener(
+        ViewTreeObserver.OnGlobalLayoutListener onGlobalLayoutListener =
                 new ViewTreeObserver.OnGlobalLayoutListener() {
 
                     private final Rect r = new Rect();
 
                     private final int visibleThreshold = Math.round(
-                            UIUtil.convertDpToPx(activity, KEYBOARD_VISIBLE_THRESHOLD_DP));
+                            UIUtil.convertDpToPx(rootView.getContext(), KEYBOARD_VISIBLE_THRESHOLD_DP));
 
                     private boolean wasOpened = false;
 
                     @Override
                     public void onGlobalLayout() {
-                        activityRoot.getWindowVisibleDisplayFrame(r);
+                        rootView.getWindowVisibleDisplayFrame(r);
 
-                        int heightDiff = activityRoot.getRootView().getHeight() - r.height();
+                        int heightDiff = rootView.getRootView().getHeight() - r.height();
 
                         boolean isOpen = heightDiff > visibleThreshold;
 
@@ -61,7 +71,12 @@ public class KeyboardVisibilityEvent {
 
                         listener.onVisibilityChanged(isOpen);
                     }
-                });
+                };
+
+        final UnbindKeyboard unbindKeyboard = new UnbindKeyboard(rootView, onGlobalLayoutListener);
+        rootView.getViewTreeObserver().addOnGlobalLayoutListener(onGlobalLayoutListener);
+
+        return unbindKeyboard;
     }
 
     /**
@@ -86,5 +101,26 @@ public class KeyboardVisibilityEvent {
 
     private static View getActivityRoot(Activity activity) {
         return ((ViewGroup) activity.findViewById(android.R.id.content)).getChildAt(0);
+    }
+
+    public static class UnbindKeyboard{
+        private View rootView;
+        private ViewTreeObserver.OnGlobalLayoutListener onGlobalLayoutListener;
+
+        private UnbindKeyboard(View rootView,
+                               ViewTreeObserver.OnGlobalLayoutListener onGlobalLayoutListener) {
+            this.rootView = rootView;
+            this.onGlobalLayoutListener = onGlobalLayoutListener;
+        }
+
+        public void unbind() {
+            if(rootView != null && onGlobalLayoutListener != null) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+                    rootView.getViewTreeObserver().removeOnGlobalLayoutListener(onGlobalLayoutListener);
+                }
+                rootView = null;
+                onGlobalLayoutListener = null;
+            }
+        }
     }
 }

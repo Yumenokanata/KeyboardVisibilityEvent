@@ -16,6 +16,8 @@ public class MainActivity extends AppCompatActivity {
 
     EditText mTextField;
 
+    KeyboardVisibilityEvent.UnbindKeyboard unbindKeyboard;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -24,7 +26,7 @@ public class MainActivity extends AppCompatActivity {
         mKeyboardStatus = (TextView) findViewById(R.id.keyboard_status);
         mTextField = (EditText) findViewById(R.id.text_field);
 
-        KeyboardVisibilityEvent.setEventListener(this, new KeyboardVisibilityEventListener() {
+        unbindKeyboard = KeyboardVisibilityEvent.setEventListener(this, new KeyboardVisibilityEventListener() {
             @Override
             public void onVisibilityChanged(boolean isOpen) {
                 updateKeyboardStatusText(isOpen);
